@@ -1,33 +1,35 @@
-%pylab inline
-data_dir = '/Users/Nicke/Desktop/hackthedinos/test_images'
-import os
-
 import numpy as np
 import matplotlib.pyplot as plt
-# import cv2
+import cv2
 import matplotlib.image as mpimg
+from skimage import measure
+from skimage.restoration import denoise_tv_chambolle, denoise_bilateral
 
-# Need this to convert images to greyscale. I don't like the way I do this--there's gotta be a better way
-def rgb2gray(rgb):
-    return np.dot(rgb[...,:3], [0.299, 0.587, 0.144])
+## Import image and convert
 
 image_location = os.path.join(data_dir, 'ct_scan_medref.jpg')
-# image_file = cv2.imread(image_location, 0)
+image_file = cv2.imread(image_location, 0) # Still using openCV to read in the image. Should fix.
 image_array = np.array(image_file)
-
-image_file = mpimg.imread(image_location)
-gray = rgb2gray(image_file)
-image_array = np.array(gray)
 
 plt.imshow(image_array)
 
+## Denoise image
+
+image_array2 = denoise_tv_chambolle(image_array, weight=100, multichannel=True)
+
+# plt.show(image_array2)
+
+## Find contours
 contours = measure.find_contours(image_array, 100)
+contour_thresh = 60
+large_contours = [x for x in contours if len(x) > contour_thresh]
+# large_contours = remove_small_objects(contours)
 
-# Display the image and plot all contours found
+# # Display the image and plot all contours found
 fig, ax = plt.subplots()
-ax.imshow(image_array, interpolation='nearest', cmap=plt.cm.gray)
+ax.imshow(image_array2, interpolation='nearest', cmap=plt.cm.gray)
 
-for n, contour in enumerate(contours):
+for n, contour in enumerate(large_contours):
     ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
 
 ax.axis('image')
