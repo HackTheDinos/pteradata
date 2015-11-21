@@ -4,13 +4,22 @@ import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2
+# import cv2
+import matplotlib.image as mpimg
+
+# Need this to convert images to greyscale. I don't like the way I do this--there's gotta be a better way
+def rgb2gray(rgb):
+    return np.dot(rgb[...,:3], [0.299, 0.587, 0.144])
 
 image_location = os.path.join(data_dir, 'ct_scan_medref.jpg')
-image_file = cv2.imread(image_location, 0) # I use openCV for this because I couldn't figure out how to read in an image as greyscale easily
+# image_file = cv2.imread(image_location, 0)
 image_array = np.array(image_file)
 
-# plt.imshow(image_array)
+image_file = mpimg.imread(image_location)
+gray = rgb2gray(image_file)
+image_array = np.array(gray)
+
+plt.imshow(image_array)
 
 contours = measure.find_contours(image_array, 100)
 
