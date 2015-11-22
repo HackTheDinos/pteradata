@@ -2,10 +2,21 @@
 # /usr/local/bin/smop -v CONVERT_meshformat.m CONVERT_voxels_to_stl.m READ_stl.m WRITE_stl.m
 
 from __future__ import division
-# try:
-#     from runtime import *
-# except ImportError:
-#     from smop.runtime import *
+#try:
+#from runtime import *
+#except ImportError:
+import smop
+from smop.runtime import *
+print smop.__version__
+import numpy as np
+
+def logical_(arr):
+    arr[arr > 0] = 1
+    arr[arr != 1] = 0
+    return arr
+
+def ind2sub_(size, arr, nargout):
+    return np.unravel_index(arr, size)
 
 def CONVERT_meshformat_(*args,**kwargs):
     varargin = cellarray(args)
@@ -49,29 +60,34 @@ def CONVERT_voxels_to_stl_(STLname=None,gridDATA=None,gridX=None,gridY=None,grid
         gridY=gridY.T
     if size_(gridZ,1) > size_(gridZ,2):
         gridZ=gridZ.T
-    if not isequal_(size_(gridDATA),[numel_(gridX),numel_(gridY),numel_(gridZ)]):
-        error_(char(' The dimensions of gridDATA do not match the dimensions of gridX, gridY, gridZ.'))
+    if not isequal_(size_(gridDATA),[[numel_(gridX),numel_(gridY),numel_(gridZ)]]):
+        print size_(gridDATA), [numel_(gridX), numel_(gridY), numel_(gridZ)]
+        raise ValueError(' The dimensions of gridDATA do not match the dimensions of gridX, gridY, gridZ.')
     gridDATA=logical_(gridDATA)
     objectIND=find_(gridDATA == 1)
     objectX,objectY,objectZ=ind2sub_([numel_(gridX),numel_(gridY),numel_(gridZ)],objectIND,nargout=3)
-    if objectX[1] != objectX[end()]:
+    objectX = objectX[0];
+    objectY = objectY[0];
+    objectZ = objectZ[0];
+    print objectX, objectY, objectZ
+    if objectX[1] != objectX[-1]:
         gridDATA=gridDATA[min_(objectX):max_(objectX),:,:]
         gridX=gridX[min_(objectX):max_(objectX)]
-    if objectY[1] != objectY[end()]:
+    if objectY[1] != objectY[-1]:
         gridDATA=gridDATA[:,min_(objectY):max_(objectY),:]
         gridY=gridY[min_(objectY):max_(objectY)]
-    if objectZ[1] != objectZ[end()]:
+    if objectZ[1] != objectZ[-1]:
         gridDATA=gridDATA[:,:,min_(objectZ):max_(objectZ)]
         gridZ=gridZ[min_(objectZ):max_(objectZ)]
-    gridXsteps=gridX[2:end()] - gridX[1:end() - 1]
+    gridXsteps=gridX[2:] - gridX[1:-1]
     gridXlower=gridX - [gridXsteps[1],gridXsteps] / 2
-    gridXupper=gridX + [gridXsteps,gridXsteps[end()]] / 2
-    gridYsteps=gridY[2:end()] - gridY[1:end() - 1]
+    gridXupper=gridX + [gridXsteps,gridXsteps[-1]] / 2
+    gridYsteps=gridY[2:] - gridY[1:-1]
     gridYlower=gridY - [gridYsteps[1],gridYsteps] / 2
-    gridYupper=gridY + [gridYsteps,gridYsteps[end()]] / 2
-    gridZsteps=gridZ[2:end()] - gridZ[1:end() - 1]
+    gridYupper=gridY + [gridYsteps,gridYsteps[-1]] / 2
+    gridZsteps=gridZ[2:] - gridZ[1:-1]
     gridZlower=gridZ - [gridZsteps[1],gridZsteps] / 2
-    gridZupper=gridZ + [gridZsteps,gridZsteps[end()]] / 2
+    gridZupper=gridZ + [gridZsteps,gridZsteps[-1]] / 2
     voxcountX=numel_(gridX)
     voxcountY=numel_(gridY)
     voxcountZ=numel_(gridZ)
@@ -80,17 +96,17 @@ def CONVERT_voxels_to_stl_(STLname=None,gridDATA=None,gridX=None,gridY=None,grid
         gridDATAwithborder=cat_(1,false_(1,voxcountY,voxcountZ),gridDATA,false_(1,voxcountY,voxcountZ))
         gridDATAshifted=cat_(1,false_(1,voxcountY,voxcountZ),gridDATAshifted,false_(1,voxcountY,voxcountZ))
         gridDATAshifted=gridDATAshifted + circshift_(gridDATAwithborder,[- 1,0,0]) + circshift_(gridDATAwithborder,[1,0,0])
-        gridDATAshifted=gridDATAshifted[2:end() - 1,:,:]
+        gridDATAshifted=gridDATAshifted[2:-1,:,:]
     if voxcountY > 2:
         gridDATAwithborder=cat_(2,false_(voxcountX,1,voxcountZ),gridDATA,false_(voxcountX,1,voxcountZ))
         gridDATAshifted=cat_(2,false_(voxcountX,1,voxcountZ),gridDATAshifted,false_(voxcountX,1,voxcountZ))
         gridDATAshifted=gridDATAshifted + circshift_(gridDATAwithborder,[0,- 1,0]) + circshift_(gridDATAwithborder,[0,1,0])
-        gridDATAshifted=gridDATAshifted[:,2:end() - 1,:]
+        gridDATAshifted=gridDATAshifted[:,2:-1,:]
     if voxcountZ > 2:
         gridDATAwithborder=cat_(3,false_(voxcountX,voxcountY,1),gridDATA,false_(voxcountX,voxcountY,1))
         gridDATAshifted=cat_(3,false_(voxcountX,voxcountY,1),gridDATAshifted,false_(voxcountX,voxcountY,1))
         gridDATAshifted=gridDATAshifted + circshift_(gridDATAwithborder,[0,0,- 1]) + circshift_(gridDATAwithborder,[0,0,1])
-        gridDATAshifted=gridDATAshifted[:,:,2:end() - 1]
+        gridDATAshifted=gridDATAshifted[:,:,2:-1]
     edgevoxelindices=find_(gridDATA == 1 and gridDATAshifted < 6).T
     edgevoxelcount=numel_(edgevoxelindices)
     facetcount=2 * (edgevoxelcount * 6 - sum_(gridDATAshifted[edgevoxelindices]))
@@ -266,15 +282,15 @@ def READ_stlascii_(stlFILENAME=None,*args,**kwargs):
     if nargout == 3:
         line1=char_(fidCONTENT[1])
         if (size_(line1,2) >= 7):
-            stlNAME=line1[7:end()]
+            stlNAME=line1[7:]
         else:
             stlNAME=char('unnamed_object')
     if nargout >= 2:
         stringNORMALS=char_(fidCONTENT[logical_(strncmp_(fidCONTENT,char('facet normal'),12))])
-        coordNORMALS=str2num_(stringNORMALS[:,13:end()])
+        coordNORMALS=str2num_(stringNORMALS[:,13:])
     facetTOTAL=sum_(strcmp_(fidCONTENT,char('endfacet')))
     stringVERTICES=char_(fidCONTENT[logical_(strncmp_(fidCONTENT,char('vertex'),6))])
-    coordVERTICESall=str2num_(stringVERTICES[:,7:end()])
+    coordVERTICESall=str2num_(stringVERTICES[:,7:])
     cotemp=zeros_(3,facetTOTAL,3)
     cotemp[:]=coordVERTICESall
     coordVERTICES=shiftdim_(cotemp,1)
@@ -315,10 +331,10 @@ def WRITE_stlascii_(fileOUT=None,coordVERTICES=None,coordNORMALS=None,*args,**kw
     nargin = 3-[fileOUT,coordVERTICES,coordNORMALS].count(None)+len(args)
 
     facetcount=size_(coordNORMALS,1)
-    filePREFIX=fileOUT[1:end() - 4]
+    filePREFIX=fileOUT[1:-4]
     outputALL=zeros_(facetcount,3,4)
     outputALL[:,:,1]=coordNORMALS
-    outputALL[:,:,2:end()]=coordVERTICES
+    outputALL[:,:,2:]=coordVERTICES
     outputALL=permute_(outputALL,[2,3,1])
     fidOUT=fopen_([fileOUT],char('w'))
     fprintf_(fidOUT,char('solid %s\\n'),filePREFIX)
@@ -331,10 +347,10 @@ def WRITE_stlbinary_(fileOUT=None,coordVERTICES=None,coordNORMALS=None,*args,**k
     nargin = 3-[fileOUT,coordVERTICES,coordNORMALS].count(None)+len(args)
 
     facetcount=size_(coordNORMALS,1)
-    filePREFIX=fileOUT[1:end() - 4]
+    filePREFIX=fileOUT[1:-4]
     outputALL=zeros_(facetcount,3,4)
     outputALL[:,:,1]=coordNORMALS
-    outputALL[:,:,2:end()]=coordVERTICES
+    outputALL[:,:,2:]=coordVERTICES
     outputALL=permute_(outputALL,[2,3,1])
     fidOUT=fopen_([fileOUT],char('w'))
     headerdata=int8_(zeros_(80,1))
@@ -347,15 +363,17 @@ def WRITE_stlbinary_(fileOUT=None,coordVERTICES=None,coordNORMALS=None,*args,**k
     fclose_(fidOUT)
     return
 
-import time
-import sys
-import glob
-import numpy as np
-import matplotlib.pyplot as plt
+
+
+#import time
+#import sys
+#import glob
+#import numpy as np
+#import matplotlib.pyplot as plt
 import skimage as sk
-from PIL import Image
-from mpl_toolkits.mplot3d import axes3d
-%pylab inline
+#from PIL import Image
+#from mpl_toolkits.mplot3d import axes3d
+
 
 # # path for image corpus
 # pathCoronal = '../../Zanabazar/CORONAL/*.*';
@@ -370,7 +388,7 @@ from mpl_toolkits.mplot3d import axes3d
 # Z = []
 # image3D = [];                 # container for 3D image data
 # maxSize = None;
-transparencyThreshold = 155;  # threshold for setting transparent values
+# transparencyThreshold = 155;  # threshold for setting transparent values
 
 # images = glob.glob(path);     # get all images in the folder
 # if not directionForward:
@@ -411,26 +429,24 @@ transparencyThreshold = 155;  # threshold for setting transparent values
 # print image3D.shape;
 # import itertools
 
+transparencyThreshold = 155;  # threshold for setting transparent values
+
 print "loading numpy array";
 image3D = np.load('zbar_cor.npy');
 print image3D.shape;
-X = range(0, len(image3D))
-Y = range(0, len(image3D[0]))
-Z = range(0, len(image3D[0][0]))
+X = np.array(range(0, len(image3D)))
+Y = np.array(range(0, len(image3D[0])))
+Z = np.array(range(0, len(image3D[0][0])))
 numImages = len(Z);
 print len(X), len(Y), numImages;
-
-for (x,y,z), value in np.ndenumerate(image3D):
-    if z % numImages == 0:
-        print x, y, z;
-    if value > transparencyThreshold:
-        image3D[x][y][z] = 1;
-    else:
-        image3D[x][y][z] = 0;
-print "finished thresholding"
-
 print np.max(image3D);
 
-CONVERT_voxels_to_stl_('temp.stl', image3D, X, Y, Z, 'ascii');
+image3D[image3D <= transparencyThreshold] = 0;
+image3D[image3D > transparencyThreshold] = 1;
+print "finished thresholding"
+print np.max(image3D);
+print image3D.shape;
+
+CONVERT_voxels_to_stl_('temp.stl', image3D, X, Y, Z);
 print "finished converting voxels"
 
